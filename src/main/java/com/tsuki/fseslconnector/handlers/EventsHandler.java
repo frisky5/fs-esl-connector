@@ -1,14 +1,15 @@
 package com.tsuki.fseslconnector.handlers;
 
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.CONTENT_LENGTH;
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.EMPTY_LINE_MESSAGE;
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.TEXT_EVENT_PLAIN;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.CONTENT_LENGTH;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.EMPTY_LINE_MESSAGE;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.TEXT_EVENT_PLAIN;
 
 import java.util.HashMap;
 
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import com.tsuki.fseslconnector.processors.EventsProcessors;
+import com.tsuki.fseslconnector.utilities.FsEslStatusStore;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -19,6 +20,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 public class EventsHandler extends SimpleChannelInboundHandler<ByteBuf> {
     private final ThreadPoolTaskExecutor eventsProcessingPool;
     private final ByteBuf comparingBuff = Unpooled.buffer(16, 16);
+    private final FsEslStatusStore fsEslStatusStore;
 
     private boolean processingEvent = false;
     private boolean processingTextEventPlain = false;
@@ -29,8 +31,9 @@ public class EventsHandler extends SimpleChannelInboundHandler<ByteBuf> {
 
     private HashMap<ByteBuf, ByteBuf> event = new HashMap<>();
 
-    public EventsHandler(ThreadPoolTaskExecutor eventsProcessingPool) {
+    public EventsHandler(ThreadPoolTaskExecutor eventsProcessingPool, FsEslStatusStore fsEslStatusStore) {
         this.eventsProcessingPool = eventsProcessingPool;
+        this.fsEslStatusStore = fsEslStatusStore;
     }
 
     @Override
@@ -45,7 +48,6 @@ public class EventsHandler extends SimpleChannelInboundHandler<ByteBuf> {
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
-
         if (!processingEvent) {
             if (msg.capacity() > 16) {
                 msg.getBytes(0, comparingBuff);
@@ -72,7 +74,8 @@ public class EventsHandler extends SimpleChannelInboundHandler<ByteBuf> {
                         event.put(msg.copy(0, indexOfSeperator),
                                 msg.copy(indexOfSeperator + 2, msg.capacity() - (indexOfSeperator + 2)));
                     } else {
-                        eventsProcessingPool.execute(new EventsProcessors(new HashMap<ByteBuf, ByteBuf>(event)));
+                        eventsProcessingPool
+                                .execute(new EventsProcessors(new HashMap<ByteBuf, ByteBuf>(event), fsEslStatusStore));
                         event.clear();
                         processingEvent = false;
                         processingTextEventPlain = false;

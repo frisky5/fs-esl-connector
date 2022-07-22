@@ -1,18 +1,19 @@
 package com.tsuki.fseslconnector.handlers;
 
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.AUTHENTICATION_HANDLER;
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.AUTH_REQUEST_MESSAGE;
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.COMMAND_REPLY;
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.EMPTY_LINE_MESSAGE;
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.EVENTS_HANDLER;
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.AUTH_REPLY_ERR;
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.AUTH_REPLY_OK;
-import static com.tsuki.fseslconnector.utilities.ProcessingConstants.EVENT_SUBSCRIBE_REPLY;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.AUTHENTICATION_HANDLER;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.AUTH_REPLY_ERR;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.AUTH_REPLY_OK;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.AUTH_REQUEST_MESSAGE;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.COMMAND_REPLY;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.EMPTY_LINE_MESSAGE;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.EVENTS_HANDLER;
+import static com.tsuki.fseslconnector.utilities.fseslContants.ProcessingConstants.EVENT_SUBSCRIBE_REPLY;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.tsuki.fseslconnector.configuration.FsEslClientProperties;
+import com.tsuki.fseslconnector.utilities.FsEslStatusStore;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -25,6 +26,7 @@ public class AuthenticationAndSubscribeHandler extends SimpleChannelInboundHandl
     private final EventsHandler eventsHandler;
     private final FsEslClientProperties fsEslClientProperties;
     private final String eventsSubscribeCommand;
+    private final FsEslStatusStore fsEslStatusStore;
 
     boolean receivedAuthRequest = false;
     boolean receivedAuthRequestEol = false;
@@ -39,9 +41,12 @@ public class AuthenticationAndSubscribeHandler extends SimpleChannelInboundHandl
 
     boolean sentEventsJsonSubcribe = false;
 
-    public AuthenticationAndSubscribeHandler(EventsHandler eventsHandler, FsEslClientProperties fsEslClientProperties) {
+    public AuthenticationAndSubscribeHandler(EventsHandler eventsHandler,
+            FsEslClientProperties fsEslClientProperties,
+            FsEslStatusStore fsEslStatusStore) {
         this.eventsHandler = eventsHandler;
         this.fsEslClientProperties = fsEslClientProperties;
+        this.fsEslStatusStore = fsEslStatusStore;
         eventsSubscribeCommand = "events plain " + fsEslClientProperties.getEvents() + "\n\n";
     }
 
@@ -58,9 +63,6 @@ public class AuthenticationAndSubscribeHandler extends SimpleChannelInboundHandl
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, ByteBuf message) {
-        // LOG.info(message.getCharSequence(0, message.readableBytes(),
-        // CharsetUtil.UTF_8).toString());
-
         if (!receivedAuthRequest
                 && message.compareTo(AUTH_REQUEST_MESSAGE) == 0) {
             LOG.info("Received Authentication Request from Freeswtich.");
@@ -110,6 +112,7 @@ public class AuthenticationAndSubscribeHandler extends SimpleChannelInboundHandl
             receivedAuthReplyEol = true;
             LOG.info(
                     "FS ESL Socket is authenticated, sending event subscribe command.");
+            fsEslStatusStore.setIsFsEslSocketAuthenticated(true);
             ctx.writeAndFlush(Unpooled.copiedBuffer(eventsSubscribeCommand, CharsetUtil.UTF_8));
             return;
         }

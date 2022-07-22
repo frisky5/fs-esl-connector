@@ -1,10 +1,10 @@
-package com.tsuki.fseslconnector.utilities;
+package com.tsuki.fseslconnector.utilities.fseslContants;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
 
-public interface EventsNames {
+public interface EventsValues {
     /*
      * This interface contains the values that might be found in a key with the name
      * Event-Name in the event HashMap in the Executor runnable. the reason for

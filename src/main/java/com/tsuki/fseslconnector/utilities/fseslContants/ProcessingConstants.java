@@ -1,4 +1,4 @@
-package com.tsuki.fseslconnector.utilities;
+package com.tsuki.fseslconnector.utilities.fseslContants;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
